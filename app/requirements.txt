@@ -1,0 +1,14 @@
+APScheduler==3.10.4
+fastapi==0.103.2
+prometheus_client==0.17.1
+pydantic==2.4.2
+pydantic_settings==2.0.3
+pytest==7.4.2
+python-dotenv==1.0.0
+SQLAlchemy==2.0.21
+starlette
+uvicorn
+mysql-connector-python
+bcrypt==3.2.0
+cryptography==3.4.8
+prometheus-fastapi-instrumentator

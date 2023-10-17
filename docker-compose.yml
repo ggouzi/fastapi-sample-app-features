@@ -1,0 +1,41 @@
+version: '2.1'
+services:
+  fastapi-app:
+    image: fastapi-app-sample-features:latest
+    container_name: fastapi-app-container
+    build:
+      context: ./app
+    env_file:
+      - ./app/.env.docker-compose
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:latest
+    hostname: nginx-host
+    ports:
+      - "8080:8080"
+    container_name: nginx-container
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+    depends_on:
+      - mysql
+      - fastapi-app
+
+  mysql:
+    image: mysql:latest
+    container_name: mysql-container
+    hostname: mysql-host
+    environment:
+      MYSQL_ROOT_PASSWORD: test
+      MYSQL_DATABASE: test
+      MYSQL_USER: test
+      MYSQL_PASSWORD: test
+    volumes:
+      - ./database/base/01_init_db.sql:/docker-entrypoint-initdb.d/01_init_db.sql
+      - ./database/base/02_schema.sql:/docker-entrypoint-initdb.d/02_schema.sql
+      - ./database/base/03_data.sql:/docker-entrypoint-initdb.d/03_data.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost"]
+      timeout: 8s
