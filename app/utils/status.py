@@ -8,24 +8,24 @@ class Status(BaseModel):
 responses = {
     201: {
         "content": {"application/json": {
-            "example": {"detail": "Resource created"}
+            "example": {"detail": "Return a HTTP 201 on resource creation"}
         }},
         "model": Status,
-        "description": "Return a HTTP 201 on resource creation"
+        "description": "Return created"
     },
     400: {
         "content": {"application/json": {
-            "example": {"detail": "Bad request"}
+            "example": {"detail": "Invalid role_id 3"}
         }},
         "model": Status,
-        "description": "Cannot find role_id 3"
+        "description": "Bad request"
     },
     401: {
         "content": {"application/json": {
-            "example": {"detail": "Invalid credentials"}
+            "example": {"detail": "Invalid username/password"}
         }},
         "model": Status,
-        "description": "Invalid username/password"
+        "description": "Invalid credentials"
     },
     403: {
         "content": {"application/json": {
@@ -46,28 +46,28 @@ responses = {
             "example": {"detail": "Item with the same name is already registered"}
         }},
         "model": Status,
-        "description": "Item with the same name is already registered"
+        "description": "Conflict"
     },
     422: {
         "content": {"application/json": {
-            "example": {"detail": "Wrong datatype in input"}
+            "example": {"detail": "Unexpected JSON payload"}
         }},
         "model": Status,
-        "description": "JSON input payload is not expected"
+        "description": "Wrong datatype in input"
     },
     426: {
         "content": {"application/json": {
             "example": {"detail": "Version 0.X not supported"}
         }},
         "model": Status,
-        "description": "Version 0.9 is not supported anymore"
+        "description": "Version X is not supported anymore"
     },
     500: {
         "content": {"application/json": {
-            "example": {"detail": "Internal server error"}
+            "example": {"detail": "Internal error: Failed to update User"}
         }},
         "model": Status,
-        "description": "Internal error: Failed to update User"
+        "description": "Internal error"
     }
 }
 
