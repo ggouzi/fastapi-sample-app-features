@@ -3,28 +3,28 @@
   hash password
   salt
 - Multi platform tokens
-- Versioning OK
 - Prometheus custom metrics
-- Redoc OK
-- Static files OK
-- Crons OK
-- Roles
-- Logging OK
 - Schema
 - Admin password OK
-
-# Todo
-Clean code
-Write readme
-pytest
-
-push image
+- Kubernetes
+- Readme/Expand code
 
 
 # FastAPI-app-sample
+![Logo](app/static/files/logo.png)
 
+## Summary
 
 ## Purpose
+This sample is designed to provide a skeleton of a clean architecture using FastAPI.
+
+It contains 2 simple resources: Users and Items. Users can create/update/delete items.
+
+It follows recommended guidelines and provides main features that are useful in production, such as Authentication, Versioning, Permissions... (See [Features](#Features])).
+
+It aims to help building a new API from scratch but also can help understanding how architecture of a backend is relevant.
+
+The API can be launched locally but is also containerized. See [Installation](#Installation)
 
 
 ## Architecture
@@ -42,16 +42,18 @@ push image
     ├── static => Serve static files
     ├── test => For testing
     ├── utils => Utilies/common. Functions and constants used multiple times in previous folders
-    ├── .env => Define environment variables
+    ├── .env => Define environment variables to e used locally
+    ├── .env => Define environment variables to be used in docker container
     ├── main.py => Import all routes, define cron jobs, generate auto-documentation, start the app
     ├── settings.py => Maps environment variables from .env file to class attributes
     ├── requirements.txt => List all dependencies
 ```
 
-
-
 ### Database schema
-The database schema used in this example is straighforward. Users can create/update/get/delete Items. Each item is assigned to a User (by default, the ones who created it).
+The database schema used in this example is straighforward. Users can create/update/get/delete Items.
+
+Each item is assigned to a User (by default, the ones who created it).
+
 Other tables are less relevant from a project perspective.
 - Tokens table stores tokens for Users Authentication. See [Authentication](#Authentication)
 - Roles tables stores a static list of roles (each role is mapped to an ID). See [Permissions](#Permissions)
@@ -64,26 +66,29 @@ Based on this schema, we want to build an HTTP REST API to perform some actions 
 - Create an Item
 - Update a User
 - Delete an Item
-...
+- etc...
 
 ## Features
 This app sample provides a set of custom features which are required for most apps in production.
-- Versioning  
-- Authentication
-- Permission
-- Crons
-- Serve static files
-- Logging
-- Documentation
-- Monitoring
+- [Versioning](#Versioning)
+- [Authentication](#Authentication)
+- [Permissions](#Permissions)
+- [Crons](#Crons)
+- [Serve static files ](##serve-static-files)
+- [Logging](#Logging)
+- [Documentation](#Documentation)
+- [Monitoring](#Monitoring)
 
-### Versioning
+### 1. Versioning
 A versioning mechanism is in place by defining a X-Version HTTP header and handle it through a wrapper function on routes using a decorator `@custom_declarators.version_check`
 This function checks for the presence of X-Version HTTP header.
 - If the header is present, extract its value and compare it with the content of the versions table. Each version is either supported or not
   - If version.supported=True => Allow to continue executing the given route
   - If version.supported=False => Raise a HTTP 426 error
 - If the header is absent, allow to continue executing the given route. We consider the absence of header to be fine and similar to a supported version
+
+<details><summary>Example of supported/non-supported versions</summary>
+
 
 ```bash
 # A non-supported version
@@ -99,18 +104,80 @@ status_code: 426
 status_code: 200
 ```
 
-### Authentication
+</details>
+
+### 2. Authentication
 Oauth 2
 Routes are protected to be avaialble to logged-in users only.
 Authentication works using 2 tokens: An access_token and a refresh_token
 
+![Auth](documentation/auth.jpg)
 
+### 3. Permissions
+Users are associated to a role (through a foreign key). There are currently two roles in database:
+<details><summary>Roles</summary>
 
-### Permissions
+```bash
+curl -sS http://localhost:8080/roles | jq .
+[
+  {
+    "name": "admin",
+    "id": 1
+  },
+  {
+    "name": "user",
+    "id": 2
+  }
+]
+```
 
+</details>
 
-## Crons
-Cron can be configured using the (BackgroundScheduler module)[Link ???].
+Roles are the key element which defines permissions. Here are the following 4 different permissions currently handled, and their associated signification.
+- `PERMISSION_ADMIN` => `role_id=1`: Admin account
+- `PERMISSION_ADMIN_OR_USER_OWNER` => `role_id=1 or role_id=2 and user_id=current_user.id`: For routes having `user_id` parameter in path: Admin account or user account matching `user_id`
+- `PERMISSION_ADMIN_OR_ITEM_OWNER` => `role_id=1 or role_id=2 and user_id=current_user.id`: For routes having `item_id` parameter in path: Admin account or user account owing the item matching `item_id`
+- `PERMISSION_USER` => `role_id=1 or role_id=2`: Any user
+
+Permission are defined through a custom decorator for each route:
+```python
+@custom_declarators.permission(permission_string=consts.Consts.PERMISSION_ADMIN)
+def create_user_as_admin(user: user_schema.UserCreate, request: Request, db: Session = Depends(get_db)):
+  ...
+```
+
+<details><summary>The declarator itself is defined here</summary>
+
+```python
+def permission(permission_string):
+    def decorator_auth(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            request = kwargs['request']
+            db = kwargs['db']
+            token = rights.retrieve_token_from_header(request)
+            if permission_string == consts.Consts.PERMISSION_ADMIN:
+                rights.is_admin(db, token)
+            elif permission_string == consts.Consts.PERMISSION_ADMIN_OR_USER_OWNER:
+                user_id = kwargs['user_id']
+                rights.is_admin_or_user_owner(db=db, token=token, user_id=user_id)
+            elif permission_string == consts.Consts.PERMISSION_ADMIN_OR_ITEM_OWNER:
+                item_id = kwargs['item_id']
+                rights.is_admin_or_item_owner(db=db, token=token, item_id=item_id)
+            elif permission_string == consts.Consts.PERMISSION_USER:
+                rights.is_authenticated(db=db, token=token)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator_auth
+```
+
+</details>
+
+Functions defined in `rights.py` will trigger a HTTP 403 error if the current user doesn't have the given permission.
+Therefore, you can protect any route with any level of permission through this decorator
+
+### 4. Crons
+Cron can be configured using the [BackgroundScheduler module](https://fastapi.tiangolo.com/tutorial/background-tasks/).
 They are defined easily using a decorator
 ```python
 # This cron will run at an interval of 1 day (everyday) and will:
@@ -139,32 +206,36 @@ We can configure the FastAPI app to serve static files using the following comma
 app.mount("/", StaticFiles(directory="static/files/"))
 ```
 
-This maps files under `static/files/` folder at the root level of the web server (`/`). `static/files/logo.jpg` could be fetched from `http://localhost:8080/logo.png`
+This maps files under `static/files/` folder at the root level of the web server (`/`). `static/files/logo.png` could be fetched from `http://localhost:8080/logo.png`
 
 
-### Logging
+### 5. Logging
 This sample app uses logging package as part of standard Python library. The logging configuration is defined in `main.py`
-```python
-import logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s"
-)
 
-logger = logging.getLogger()
-# Print something
-logging.info("A simple message")
-logging.warning("A warning message")
-logging.error("An error message")
-```
+<details><summary>Example</summary>
 
-```
-2023-10-20 11:00:37,526 [INFO] A simple message
-2023-10-20 11:00:37,526 [WARNING] A warning message
-2023-10-20 11:00:37,526 [ERROR] An error message
-```
+  ```python
+  import logging
+  logging.basicConfig(
+      level=logging.INFO,
+      format="%(asctime)s [%(levelname)s] %(message)s"
+  )
 
-### Documentation
+  logger = logging.getLogger()
+  # Print something
+  logging.info("A simple message")
+  logging.warning("A warning message")
+  logging.error("An error message")
+  ```
+
+  ```
+  2023-10-20 11:00:37,526 [INFO] A simple message
+  2023-10-20 11:00:37,526 [WARNING] A warning message
+  2023-10-20 11:00:37,526 [ERROR] An error message
+  ```
+</details>
+
+### 6. Documentation
 One of the great features of FastAPI is the [automatic generation of API documentation](https://fastapi.tiangolo.com/tutorial/metadata/). It supports two documentation interfaces: Swagger and Redoc. In this example, we use Redoc.
 
 First of all we need to define the openapi.json endpoint which will then be used to generate the Redoc documentation. We generate the endpoint /openai.json, which will return the OpenAPI schema in a JSON format. This function uses HTTPBasicCredentials and therefore documentation route can be protected with username/password authentication.
@@ -182,7 +253,7 @@ async def get_open_api_endpoint(credentials: HTTPBasicCredentials = Depends(secu
     )
 
     openapi_schema["info"]["x-logo"] = {
-        "url": "/logo.jpg"
+        "url": "/logo.png"
     }
     app.openapi_schema = openapi_schema
     return JSONResponse(openapi_schema)
@@ -202,27 +273,77 @@ The documentation can be accessed on [localhost:8080/docs](localhost:8080/docs) 
 @router.post("/items", response_model=item_schema.ItemResponse, status_code=201, responses=get_responses([201, 401, 403, 409, 422, 426, 500]), tags=["Items"], description="Create an Item object. Permission=User")
 ```
 
-### Prometheus
+### 7. Monitoring
 https://github.com/trallnag/prometheus-fastapi-instrumentator
 
 ## Postman collection
 
 Postman collection available here: [here](https://api.postman.com/collections/1999344-93e21dc5-aa22-4fbf-a196-fcb5e5f1926c?access_key=PMAT-01HCWNW2JZVWXF79N5ESXY61TT)
 
-## Testing
-
 ## Installation
 
+- [Standalone app](#local-setup-standalone)
+- [Containerized (Docker)](#local-setup-docker-compose)
+- [Production Deployment (Kubernetes)](#production-deployment)
+
 ### Local setup standalone
+
+Ensure you have a mysql server installed and initialise the database by executing those 3 SQL scripts.
+Default configuration: user: *test*, database name: *test*, password: *test*
+
 mysql -u root < database/base/01_init_db.sql
 mysql -u root < database/base/02_schema.sql
 mysql -u root < database/base/03_data.sql
 
 ```bash
-pip3 install -r app/requirements.txt
+pip3 install -r requirements.txt
+```
+
+If you are using different MySQL credentials, please edit the `.env` file accordingly. This file is used to pass sensitive database connection information to the API.
+
+```bash
+python3 main.py
 ```
 
 ### Local setup docker-compose
+
+MySQL and FastAPI app are containerized and provided in the `docker-compose.yml` file.
+The .env file used in this case is `.env.docker-compose`. It differs by the fast the DB_HOST is not `localhost` anymore as MySQL server and FastAPI run in two distinct containers now.
+
+Port 3306 of MySQL and port 8080 (API) and 8000 (monitoring) are not exposed to outside each container. To reach the API we use a third component: An Nginx reverse proxy. Requests will be sent towards the nginx gateway. The idea is to expose only port 8080 of Nginx and redirect routes based on their path to the appopriate location. See nginx configuration below:
+<details><summary>Nginx configuration</summary>
+
+```
+worker_processes 1;
+
+events { worker_connections 1024; }
+
+http {
+    server {
+        listen 8080 default_server;
+
+        # set DNS resolver as Docker internal DNS
+        resolver 127.0.0.11 valid=10s;
+        resolver_timeout 5s;
+
+        location ~ ^/(auth|docs|openapi.json|items|users|roles|versions) {
+            proxy_pass http://fastapi-app:8080;
+        }
+
+        location /metrics {
+            proxy_pass http://fastapi-app:8000;
+        }
+    }
+}
+```
+</details>
+
+To launch everything (MySQL, FastAPI and nginx), just run the following command:
+
 ```bash
 docker-compose up
 ```
+
+App docker image is built from `app/Dockerfile` (specified in the `docker-compose.yml` file)
+
+### Production deployment

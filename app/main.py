@@ -138,7 +138,7 @@ async def get_open_api_endpoint(credentials: HTTPBasicCredentials = Depends(secu
     )
 
     openapi_schema["info"]["x-logo"] = {
-        "url": "/logo.jpg"
+        "url": "/logo.png"
     }
     app.openapi_schema = openapi_schema
     return JSONResponse(openapi_schema)
