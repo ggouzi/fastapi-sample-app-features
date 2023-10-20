@@ -59,8 +59,23 @@ Other tables are less relevant from a project perspective.
 
 ![Database schema](documentation/fastapi-app-db.jpg)
 
-## Features
+Based on this schema, we want to build an HTTP REST API to perform some actions in the database. For example:
+- Create a new user
+- Create an Item
+- Update a User
+- Delete an Item
+...
 
+## Features
+This app sample provides a set of custom features which are required for most apps in production.
+- Versioning  
+- Authentication
+- Permission
+- Crons
+- Serve static files
+- Logging
+- Documentation
+- Monitoring
 
 ### Versioning
 A versioning mechanism is in place by defining a X-Version HTTP header and handle it through a wrapper function on routes using a decorator `@custom_declarators.version_check`
@@ -189,8 +204,6 @@ The documentation can be accessed on [localhost:8080/docs](localhost:8080/docs) 
 
 ### Prometheus
 https://github.com/trallnag/prometheus-fastapi-instrumentator
-
-
 
 ## Postman collection
 
