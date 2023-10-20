@@ -9,9 +9,9 @@
 - Static files OK
 - Crons OK
 - Roles
-- Logging
+- Logging OK
 - Schema
-- Admin password
+- Admin password OK
 
 # Todo
 Clean code
@@ -127,6 +127,28 @@ app.mount("/", StaticFiles(directory="static/files/"))
 This maps files under `static/files/` folder at the root level of the web server (`/`). `static/files/logo.jpg` could be fetched from `http://localhost:8080/logo.png`
 
 
+### Logging
+This sample app uses logging package as part of standard Python library. The logging configuration is defined in `main.py`
+```python
+import logging
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s"
+)
+
+logger = logging.getLogger()
+# Print something
+logging.info("A simple message")
+logging.warning("A warning message")
+logging.error("An error message")
+```
+
+```
+2023-10-20 11:00:37,526 [INFO] A simple message
+2023-10-20 11:00:37,526 [WARNING] A warning message
+2023-10-20 11:00:37,526 [ERROR] An error message
+```
+
 ### Documentation
 One of the great features of FastAPI is the [automatic generation of API documentation](https://fastapi.tiangolo.com/tutorial/metadata/). It supports two documentation interfaces: Swagger and Redoc. In this example, we use Redoc.
 
@@ -159,7 +181,7 @@ async def get_documentation(credentials: HTTPBasicCredentials = Depends(security
   return get_redoc_html(openapi_url="/openapi.json", title="docs")
 ```
 
-The documentation can be accessed on [localhost:8080/docs](localhost:8080/docs) and is generated from the signature of the APIRouter fonctions (under /api folder)
+The documentation can be accessed on [localhost:8080/docs](localhost:8080/docs) and is generated from the signature of the APIRouter fonctions (under /api folder). There is by default a single user in the database sample: username: *admin* / password: *admin*
 ![Doc](documentation/doc.png)
 ```python
 @router.post("/items", response_model=item_schema.ItemResponse, status_code=201, responses=get_responses([201, 401, 403, 409, 422, 426, 500]), tags=["Items"], description="Create an Item object. Permission=User")
