@@ -194,7 +194,7 @@ def disable_user(user_id: int, request: Request, db: Session = Depends(get_db)):
         raise CustomException(
             db=db,
             status_code=consts.Consts.ERROR_CODE_500,
-            details=consts.Consts.FAILED_TO_DISABLE_USER,
+            detail=consts.Consts.FAILED_TO_DISABLE_USER,
             info=f"Error when trying to disable User {user_id}",
         )
 
